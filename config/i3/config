@@ -45,6 +45,7 @@ exec --no-startup-id bash ~/.config/polybar/launch.sh --forest
 exec --no-startup-id volumeicon
 exec --no-startup-id xfce4-clipman
 exec --no-startup-id bash ~/.config/i3/startfcitx5
+exec --no-startup-id pulseaudio -D
 
 # Use pactl to adjust volume in PulseAudio.
 set $refresh_i3status killall -SIGUSR1 i3status
