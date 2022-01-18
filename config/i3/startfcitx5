@@ -1,0 +1,4 @@
+#! /usr/bin/env	bash
+XDG_RUNTIME_DIR={$HOME}/.config
+echo 'Starting fcitx5...'
+fcitx5 -d -r -s 5
