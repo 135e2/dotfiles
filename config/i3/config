@@ -41,7 +41,7 @@ exec --no-startup-id xss-lock -- i3lock-fancy
 # Extra startups
 exec --no-startup-id compton
 exec --no-startup-id sh ~/.fehbg
-exec --no-startup-id bash ~/.config/polybar/launch.sh --forest
+exec --no-startup-id bash -c "DESKTOP_SESSION=i3 ~/.config/polybar/launch.sh --forest"
 exec --no-startup-id volumeicon
 exec --no-startup-id xfce4-clipman
 exec --no-startup-id bash ~/.config/i3/startfcitx5
