@@ -1,0 +1,14 @@
+#!/usr/bin/env	bash
+
+cur_brightness=$(brightness)
+
+case "$1" in
+u*) arg='up' ;;
+d*) arg='down' ;;
+esac
+
+if [[ $((cur_brightness)) -le 6 && ${arg} == 'down' ]]; then
+	echo 'Brightness too low, skipping now...'
+else
+	brightness b ${arg}
+fi

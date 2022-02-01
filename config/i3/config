@@ -13,6 +13,12 @@ set $mod Mod4
 
 # Set delete key
 bindsym $mod+BackSpace exec xdotool key Delete
+
+# Brightness control
+bindsym $mod+Shift+u exec --no-startup-id bash ~/.config/i3/brightness up
+bindsym $mod+Shift+d exec --no-startup-id bash ~/.config/i3/brightness down
+
+
 bindsym --release $mod+Prior exec --no-startup-id xdotool key --clearmodifiers Home
 bindsym --release $mod+Next exec --no-startup-id xdotool key --clearmodifiers End
 # Font for window titles. Will also be used by the bar unless a different font
