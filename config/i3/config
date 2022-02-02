@@ -18,6 +18,8 @@ bindsym $mod+BackSpace exec xdotool key Delete
 bindsym $mod+Shift+u exec --no-startup-id bash ~/.config/i3/brightness up
 bindsym $mod+Shift+d exec --no-startup-id bash ~/.config/i3/brightness down
 
+# Screenshot (requires kde-spectacle)
+bindsym $mod+Shift+s exec --no-startup-id spectacle
 
 bindsym --release $mod+Prior exec --no-startup-id xdotool key --clearmodifiers Home
 bindsym --release $mod+Next exec --no-startup-id xdotool key --clearmodifiers End
