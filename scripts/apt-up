@@ -1,7 +1,8 @@
 #!/usr/bin/env	bash
 
 upgrade_options=''
-ARGS=$(getopt -a -o hy --long opts:,help -- "$@")
+args=$(getopt -a -o hy --long opts:,help -- "$@")
+version='v1.1'
 
 update_database() {
     echo 'Updating database...'
@@ -14,13 +15,18 @@ upgrade_packages() {
 }
 
 help_page() {
+    show_version
     echo "Usage:"
-    echo "apt-up [-y] [-h] [--opts $upgrade_options]"
+    echo -e "\tapt-up [-h/--help] [-y/--yes] [--opts $upgrade_options]"
     echo "Description:"
-    echo -e "\t-y automates the upgrade progress."
-    echo -e "\t-h diaplays the help page of apt-up."
+    echo -e "\t-h/--help diaplays the help page of apt-up."
+    echo -e "\t-y/--yes automates the upgrade progress."
     echo -e '\t--opts transports $upgrade_options to apt.'
     exit -1
+}
+
+show_version() {
+    echo -e "apt-up ${version}\n"
 }
 
 update() {
@@ -29,7 +35,7 @@ update() {
     exit 0
 }
 
-eval set -- "${ARGS}"
+eval set -- "${args}"
 
 while :; do
     case $1 in
@@ -40,13 +46,13 @@ while :; do
     -h | --help)
         help_page
         ;;
-    *)
-        update
-        ;;
     --opts)
         upgrade_options+=$2
         update
         shift
+        ;;
+    *)
+        update
         ;;
     esac
     shift
