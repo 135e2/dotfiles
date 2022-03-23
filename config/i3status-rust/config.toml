@@ -25,7 +25,7 @@ interval = 1
 [[block]]
 block = "custom"
 # ⌨ == '\xE2\x8C\xA8'
-cycle = ["xinput disable 'AT Translated Set 2 keyboard'; echo '⌨ OFF'", "xinput enable 'AT Translated Set 2 keyboard'; echo '⌨ ON'"]
+cycle = ["xinput enable 'AT Translated Set 2 keyboard'; echo '⌨ ON'", "xinput disable 'AT Translated Set 2 keyboard'; echo '⌨ OFF'"]
 
 [[block]]
 block = "battery"
