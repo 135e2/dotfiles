@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 # -*- indent-tabs-mode: nil; tab-width: 4 -*-
 
-"""Enable/disable tablet mode in a Crouton chroot based on lid angle."""
+"""
+Enable/disable tablet mode in a Crouton chroot based on lid angle.
+
+Slightly modified from https://gist.github.com/ninlith/d0b56676c09b9d3142266c20c833d3da
+Author: ninlith & 135e2
+Version: v1.1
+"""
 
 import argparse
 import logging
@@ -65,21 +71,26 @@ class ConvertibleChromebook(object):
         self.screen_orientation = "normal"
 
     def read_accelerometers(self):
-        """Get data from accelerometers."""
+        """
+        Get data from accelerometers.
+
+        Edit the path below for your chromebook.
+        """
         command = (
-            "grep --null '' /sys/class/chromeos/cros_ec/device"
-            "/cros-ec-accel.*/iio\:device*/* 2>/dev/null"
+            "grep --null '' /sys/class/chromeos/cros_ec/device/cros-ec-sensorhub.2.auto"
+            "/cros-ec-accel.*/iio:device*/* 2>/dev/null"
             )
         ret = os.popen(command).readlines()
         paths_to_values = dict(line.rstrip().split('\0', 1) for line in ret)
         tree = lambda: defaultdict(tree)
-        data = tree()
+        orig_data = tree()
+        data = {}   # Create a new data dict instead.
         for path in paths_to_values:
             dirname, filename = path.rsplit('/', 1)
-            data[dirname][filename] = paths_to_values[path]
-        for dirname in data:
-            location = data[dirname]['location']
-            data[location] = data.pop(dirname)  # Rename.
+            orig_data[dirname][filename] = paths_to_values[path]
+        for dirname in orig_data:
+            location = orig_data[dirname]['location']
+            data[location] = orig_data[dirname]  # Move data to the new dict.
 
         self.lid_accel = [x*float(data['lid']['scale']) for x in [
             float(data['lid']['in_accel_x_raw']),
@@ -234,7 +245,8 @@ def main():
             if tablet_mode_enabled is not True:
                 tablet_mode_init()
                 tablet_mode_enabled = True
-            cc.orientate_screen(callback=switch_xfce_panel_mode)
+            # Comment it out since we don't use xfce panel on i3.
+            # cc.orientate_screen(callback=switch_xfce_panel_mode)
         elif abs(cc.lid_accel[0]) > 9.5:
             # Lid angle calculation is unreliable when hinge aligns with
             # gravity.
