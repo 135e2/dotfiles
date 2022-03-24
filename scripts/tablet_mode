@@ -6,7 +6,7 @@ Enable/disable tablet mode in a Crouton chroot based on lid angle.
 
 Slightly modified from https://gist.github.com/ninlith/d0b56676c09b9d3142266c20c833d3da
 Author: ninlith & 135e2
-Version: v1.1
+Version: v1.2
 """
 
 import argparse
@@ -21,16 +21,23 @@ from collections import defaultdict
 import numpy as np
 
 logger = logging.getLogger(__name__)
+ver = "v1.2"
 
 
 def parse_command_line_args():
     """Define and parse command-line options."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-d", "--debug",
+        "-d",
+        "--debug",
         help="enable DEBUG logging level",
-        action="store_const", dest="loglevel", const=logging.DEBUG,
+        action="store_const",
+        dest="loglevel",
+        const=logging.DEBUG,
         default=logging.INFO,
+    )
+    parser.add_argument(
+        "-V", "--version", help="show tablet_mode version", action="store_true"
     )
     args = parser.parse_args()
     return args
@@ -42,24 +49,22 @@ def setup_logging(loglevel):
         version=1,
         disable_existing_loggers=False,
         formatters={
-            'f': {
-                'format':
-                    "%(asctime)s %(levelname)s %(name)s - %(message)s",
-                'datefmt': "%F %T"}},
+            "f": {
+                "format": "%(asctime)s %(levelname)s %(name)s - %(message)s",
+                "datefmt": "%F %T",
+            }
+        },
         handlers={
-            'h': {
-                'class': "logging.StreamHandler",
-                'formatter': "f",
-                'level': loglevel}},
-        root={
-            'handlers': ["h"],
-            'level': loglevel},
-        )
+            "h": {"class": "logging.StreamHandler", "formatter": "f", "level": loglevel}
+        },
+        root={"handlers": ["h"], "level": loglevel},
+    )
     logging.config.dictConfig(logging_config)
 
 
 class ConvertibleChromebook(object):
     """Convertible Chromebook."""
+
     def __init__(self, base_input_devices, touchscreen_device):
         self.base_input_devices = base_input_devices
         self.touchscreen_device = touchscreen_device
@@ -79,29 +84,35 @@ class ConvertibleChromebook(object):
         command = (
             "grep --null '' /sys/class/chromeos/cros_ec/device/cros-ec-sensorhub.2.auto"
             "/cros-ec-accel.*/iio:device*/* 2>/dev/null"
-            )
+        )
         ret = os.popen(command).readlines()
-        paths_to_values = dict(line.rstrip().split('\0', 1) for line in ret)
+        paths_to_values = dict(line.rstrip().split("\0", 1) for line in ret)
         tree = lambda: defaultdict(tree)
         orig_data = tree()
-        data = {}   # Create a new data dict instead.
+        data = {}  # Create a new data dict instead.
         for path in paths_to_values:
-            dirname, filename = path.rsplit('/', 1)
+            dirname, filename = path.rsplit("/", 1)
             orig_data[dirname][filename] = paths_to_values[path]
         for dirname in orig_data:
-            location = orig_data[dirname]['location']
+            location = orig_data[dirname]["location"]
             data[location] = orig_data[dirname]  # Move data to the new dict.
 
-        self.lid_accel = [x*float(data['lid']['scale']) for x in [
-            float(data['lid']['in_accel_x_raw']),
-            float(data['lid']['in_accel_y_raw']),
-            float(data['lid']['in_accel_z_raw']),
-            ]]
-        self.base_accel = [x*float(data['base']['scale']) for x in [
-            float(data['base']['in_accel_x_raw']),
-            float(data['base']['in_accel_y_raw']),
-            float(data['base']['in_accel_z_raw']),
-            ]]
+        self.lid_accel = [
+            x * float(data["lid"]["scale"])
+            for x in [
+                float(data["lid"]["in_accel_x_raw"]),
+                float(data["lid"]["in_accel_y_raw"]),
+                float(data["lid"]["in_accel_z_raw"]),
+            ]
+        ]
+        self.base_accel = [
+            x * float(data["base"]["scale"])
+            for x in [
+                float(data["base"]["in_accel_x_raw"]),
+                float(data["base"]["in_accel_y_raw"]),
+                float(data["base"]["in_accel_z_raw"]),
+            ]
+        ]
 
     def calculate_lid_angle(self):
         """
@@ -132,10 +143,13 @@ class ConvertibleChromebook(object):
         # http://en.wikipedia.org/wiki/Dot_product#Geometric_definition
         # Use dot product and inverse cosine to get the angle between
         # base_vec_flattened and lid_vec_flattened in degrees.
-        angle_between_vectors = math.degrees(math.acos(
-            np.dot(base_vec_flattened, lid_vec_flattened) /
-            np.linalg.norm(base_vec_flattened) /
-            np.linalg.norm(lid_vec_flattened)))
+        angle_between_vectors = math.degrees(
+            math.acos(
+                np.dot(base_vec_flattened, lid_vec_flattened)
+                / np.linalg.norm(base_vec_flattened)
+                / np.linalg.norm(lid_vec_flattened)
+            )
+        )
 
         lid_angle = 180.0 - angle_between_vectors
 
@@ -184,11 +198,12 @@ class ConvertibleChromebook(object):
                 "normal": "1 0 0 0 1 0 0 0 1",
                 "inverted": "-1 0 1 0 -1 1 0 0 1",
                 "left": "0 -1 1 1 0 0 0 0 1",
-                "right": "0 1 0 -1 0 1 0 0 1"
-                }
+                "right": "0 1 0 -1 0 1 0 0 1",
+            }
             os.system(
                 "xinput set-prop '" + self.touchscreen_device + "' "
-                "'Coordinate Transformation Matrix' " + matrices[orientation])
+                "'Coordinate Transformation Matrix' " + matrices[orientation]
+            )
             self.screen_orientation = orientation
             callback(orientation)
 
@@ -204,38 +219,41 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     args = parse_command_line_args()
+    if args.version:
+        print("tablet_mode %s" % ver)
+        sys.exit(0)
     setup_logging(args.loglevel)
 
     cc = ConvertibleChromebook(
         base_input_devices=["AT Translated Set 2 keyboard"],
-        touchscreen_device="Elan Touchscreen")
-    tablet_mode_enabled=False
+        touchscreen_device="Elan Touchscreen",
+    )
+    tablet_mode_enabled = False
 
     def switch_xfce_panel_mode(orientation):
         if orientation == "right" or orientation == "left":
-            os.system(
-                "xfconf-query -c xfce4-panel -p /panels/panel-1/mode -s 0")
+            os.system("xfconf-query -c xfce4-panel -p /panels/panel-1/mode -s 0")
         else:
-            os.system(
-                "xfconf-query -c xfce4-panel -p /panels/panel-1/mode -s 1")
+            os.system("xfconf-query -c xfce4-panel -p /panels/panel-1/mode -s 1")
 
     def tablet_mode_init():
         logger.info("Enabling tablet mode...")
         cc.disable_base_input()
-        os.system("onboard &")
+        # os.system("onboard &")
         os.system("unclutter -root -idle 0.01 &")
-        
+
     def tablet_mode_exit():
         logger.info("Disabling tablet mode...")
         cc.enable_base_input()
         cc.orientate_screen("normal")
-        os.system("pkill onboard")
+        # os.system("pkill onboard")
         os.system("pkill unclutter")
-    
+
     while True:
         cc.read_accelerometers()
-        logger.debug("Acceleration vectors (lid, base): %s, %s",
-                     cc.lid_accel, cc.base_accel)
+        logger.debug(
+            "Acceleration vectors (lid, base): %s, %s", cc.lid_accel, cc.base_accel
+        )
         cc.calculate_lid_angle()
         if cc.lid_angle < 20.00 and cc.previous_lid_angle > 180:
             cc.lid_angle = 360.0
