@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+# -*- indent-tabs-mode: nil; tab-width: 4 -*-
+
+"""Enable/disable tablet mode in a Crouton chroot based on lid angle."""
+
+import argparse
+import logging
+import logging.config
+import math
+import os
+import signal
+import sys
+import time
+from collections import defaultdict
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+def parse_command_line_args():
+    """Define and parse command-line options."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d", "--debug",
+        help="enable DEBUG logging level",
+        action="store_const", dest="loglevel", const=logging.DEBUG,
+        default=logging.INFO,
+    )
+    args = parser.parse_args()
+    return args
+
+
+def setup_logging(loglevel):
+    """Set up logging configuration."""
+    logging_config = dict(
+        version=1,
+        disable_existing_loggers=False,
+        formatters={
+            'f': {
+                'format':
+                    "%(asctime)s %(levelname)s %(name)s - %(message)s",
+                'datefmt': "%F %T"}},
+        handlers={
+            'h': {
+                'class': "logging.StreamHandler",
+                'formatter': "f",
+                'level': loglevel}},
+        root={
+            'handlers': ["h"],
+            'level': loglevel},
+        )
+    logging.config.dictConfig(logging_config)
+
+
+class ConvertibleChromebook(object):
+    """Convertible Chromebook."""
+    def __init__(self, base_input_devices, touchscreen_device):
+        self.base_input_devices = base_input_devices
+        self.touchscreen_device = touchscreen_device
+        self.base_input_enabled = None
+        self.base_accel = [None, None, None]
+        self.lid_accel = [None, None, None]
+        self.lid_angle = None
+        self.previous_lid_angle = None
+        self.screen_orientation = "normal"
+
+    def read_accelerometers(self):
+        """Get data from accelerometers."""
+        command = (
+            "grep --null '' /sys/class/chromeos/cros_ec/device"
+            "/cros-ec-accel.*/iio\:device*/* 2>/dev/null"
+            )
+        ret = os.popen(command).readlines()
+        paths_to_values = dict(line.rstrip().split('\0', 1) for line in ret)
+        tree = lambda: defaultdict(tree)
+        data = tree()
+        for path in paths_to_values:
+            dirname, filename = path.rsplit('/', 1)
+            data[dirname][filename] = paths_to_values[path]
+        for dirname in data:
+            location = data[dirname]['location']
+            data[location] = data.pop(dirname)  # Rename.
+
+        self.lid_accel = [x*float(data['lid']['scale']) for x in [
+            float(data['lid']['in_accel_x_raw']),
+            float(data['lid']['in_accel_y_raw']),
+            float(data['lid']['in_accel_z_raw']),
+            ]]
+        self.base_accel = [x*float(data['base']['scale']) for x in [
+            float(data['base']['in_accel_x_raw']),
+            float(data['base']['in_accel_y_raw']),
+            float(data['base']['in_accel_z_raw']),
+            ]]
+
+    def calculate_lid_angle(self):
+        """
+        Calculate the lid angle based on the two accelerometers (base/lid).
+
+        When the lid angle is 180 degrees and the keyboard is on a horizontal
+        plane in front of an user, the standard orientation of both
+        accelerometers is:
+          +X axis is aligned with the hinge and pointing to the right.
+          +Y axis is in the same plane as the keyboard pointing towards the
+             top of the screen.
+          +Z axis is perpendicular to the keyboard, pointing out of the
+             keyboard.
+
+        This orientation is used in kernel 3.18 and later, previous kernel
+        might use different orientation. It's also used in Android and is
+        defined in the w3 spec:
+        http://www.w3.org/TR/orientation-event/#description.
+        """
+        # https://chromium.googlesource.com/chromiumos/platform/factory/+/master/py/test/pytests/accelerometers_lid_angle.py
+
+        self.previous_lid_angle = self.lid_angle
+
+        hinge_vec = [9.8, 0.0, 0.0]  # +X axis is aligned with the hinge.
+        base_vec_flattened = [0.0, self.base_accel[1], self.base_accel[2]]
+        lid_vec_flattened = [0.0, self.lid_accel[1], self.lid_accel[2]]
+
+        # http://en.wikipedia.org/wiki/Dot_product#Geometric_definition
+        # Use dot product and inverse cosine to get the angle between
+        # base_vec_flattened and lid_vec_flattened in degrees.
+        angle_between_vectors = math.degrees(math.acos(
+            np.dot(base_vec_flattened, lid_vec_flattened) /
+            np.linalg.norm(base_vec_flattened) /
+            np.linalg.norm(lid_vec_flattened)))
+
+        lid_angle = 180.0 - angle_between_vectors
+
+        # http://en.wikipedia.org/wiki/Cross_product#Geometric_meaning
+        # If the dot product of this cross product is normal, it means that the
+        # shortest angle between |base| and |lid| was counterclockwise with
+        # respect to the surface represented by |hinge| and this angle must be
+        # reversed. That means the current lid angle is >= 180 degrees and the
+        # value should be (360.0 - lid_angle), where lid_angle is always the
+        # smaller angle between the keyboard and the screen.
+        lid_base_cross_vec = np.cross(base_vec_flattened, lid_vec_flattened)
+        if np.dot(lid_base_cross_vec, hinge_vec) > 0.0:
+            self.lid_angle = 360.0 - lid_angle
+        else:
+            self.lid_angle = lid_angle
+
+    def disable_base_input(self):
+        """Disable input devices located in the base."""
+        if self.base_input_enabled is not False:
+            for input_device in self.base_input_devices:
+                os.system("xinput disable '{}'".format(input_device))
+            self.base_input_enabled = False
+
+    def enable_base_input(self):
+        """Enable input devices located in the base."""
+        if self.base_input_enabled is not True:
+            for input_device in self.base_input_devices:
+                os.system("xinput enable '{}'".format(input_device))
+            self.base_input_enabled = True
+
+    def orientate_screen(self, orientation=None, treshold=8.0, callback=None):
+        """Change screen orientation."""
+        if not orientation:
+            if self.lid_accel[1] > treshold:
+                orientation = "normal"
+            elif self.lid_accel[1] < -treshold:
+                orientation = "inverted"
+            elif self.lid_accel[0] < -treshold:
+                orientation = "left"
+            elif self.lid_accel[0] > treshold:
+                orientation = "right"
+        if orientation and orientation != self.screen_orientation:
+            logger.info("Setting screen orientation to '%s'...", orientation)
+            os.system("xrandr -o " + orientation)
+            matrices = {
+                "normal": "1 0 0 0 1 0 0 0 1",
+                "inverted": "-1 0 1 0 -1 1 0 0 1",
+                "left": "0 -1 1 1 0 0 0 0 1",
+                "right": "0 1 0 -1 0 1 0 0 1"
+                }
+            os.system(
+                "xinput set-prop '" + self.touchscreen_device + "' "
+                "'Coordinate Transformation Matrix' " + matrices[orientation])
+            self.screen_orientation = orientation
+            callback(orientation)
+
+
+def main():
+    """Main function."""
+
+    def signal_handler(signum, frame):
+        """Exit gracefully."""
+        tablet_mode_exit()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    args = parse_command_line_args()
+    setup_logging(args.loglevel)
+
+    cc = ConvertibleChromebook(
+        base_input_devices=["AT Translated Set 2 keyboard"],
+        touchscreen_device="Elan Touchscreen")
+    tablet_mode_enabled=False
+
+    def switch_xfce_panel_mode(orientation):
+        if orientation == "right" or orientation == "left":
+            os.system(
+                "xfconf-query -c xfce4-panel -p /panels/panel-1/mode -s 0")
+        else:
+            os.system(
+                "xfconf-query -c xfce4-panel -p /panels/panel-1/mode -s 1")
+
+    def tablet_mode_init():
+        logger.info("Enabling tablet mode...")
+        cc.disable_base_input()
+        os.system("onboard &")
+        os.system("unclutter -root -idle 0.01 &")
+        
+    def tablet_mode_exit():
+        logger.info("Disabling tablet mode...")
+        cc.enable_base_input()
+        cc.orientate_screen("normal")
+        os.system("pkill onboard")
+        os.system("pkill unclutter")
+    
+    while True:
+        cc.read_accelerometers()
+        logger.debug("Acceleration vectors (lid, base): %s, %s",
+                     cc.lid_accel, cc.base_accel)
+        cc.calculate_lid_angle()
+        if cc.lid_angle < 20.00 and cc.previous_lid_angle > 180:
+            cc.lid_angle = 360.0
+        logger.debug("Lid angle: %s", cc.lid_angle)
+        if cc.lid_angle > 180.0:
+            # Tablet mode.
+            if tablet_mode_enabled is not True:
+                tablet_mode_init()
+                tablet_mode_enabled = True
+            cc.orientate_screen(callback=switch_xfce_panel_mode)
+        elif abs(cc.lid_accel[0]) > 9.5:
+            # Lid angle calculation is unreliable when hinge aligns with
+            # gravity.
+            pass
+        else:
+            # Laptop mode.
+            if tablet_mode_enabled is not False:
+                tablet_mode_exit()
+                tablet_mode_enabled = False
+        time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()
