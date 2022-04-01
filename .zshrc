@@ -56,6 +56,15 @@ zinit wait="1" lucid for \
 zinit ice lucid wait='0' atload='_zsh_autosuggest_start'
 zinit light zsh-users/zsh-autosuggestions
 
+# Easier navigation: .., ..., ...., ....., ~ and -
+# Copied from https://github.com/mathiasbynens/dotfiles/blob/main/.aliases
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+alias ~="cd ~" # `cd` is probably faster to type though
+alias -- -="cd -"
+
 # Use exa instead
 DISABLE_LS_COLORS=true
 alias ls=exa
@@ -74,3 +83,10 @@ export GPG_TTY=${_P9K_TTY}
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# local PATH
+export PATH="$PATH:${HOME}/.local/bin"
+export PATH="$HOME/.poetry/bin:$PATH"
+
+# Scaleway CLI autocomplete initialization.
+eval "$(scw autocomplete script shell=zsh)"
