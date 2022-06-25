@@ -56,6 +56,9 @@ zinit wait="1" lucid for \
 zinit ice lucid wait='0' atload='_zsh_autosuggest_start'
 zinit light zsh-users/zsh-autosuggestions
 
+# zsh-proxy
+zinit light SukkaW/zsh-proxy
+
 # Easier navigation: .., ..., ...., ....., ~ and -
 # Copied from https://github.com/mathiasbynens/dotfiles/blob/main/.aliases
 alias ..="cd .."
