@@ -46,9 +46,10 @@ if os.path.exists("/usr/local/IS_HIGH_FLAG"):
 
 try:
     while True:
-        # temp = open('/sys/class/thermal/thermal_zone0/temp')
-        # temp = int(temp.read()) / 1000
-        temp, msg = check_CPU_temp()
+        temp = open('/sys/class/thermal/thermal_zone0/temp')
+        temp = int(temp.read()) / 1000
+        msg = "%.1f ℃" % temp
+        #temp, msg = check_CPU_temp()
 
         if temp > start_temp and not is_high:  # 当SoC温度超过启动阈值且风扇处于关闭状态
             lgpio.gpio_write(h, channel, 1)
