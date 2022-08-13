@@ -1,0 +1,8 @@
+[Unit]
+Description=Service for autofan.py
+
+[Service]
+ExecStart=/usr/local/bin/autofan.py
+
+[Install]
+WantedBy=multi-user.target
