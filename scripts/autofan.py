@@ -3,6 +3,7 @@
 
 import lgpio, re, os, subprocess, logging
 from time import sleep
+from pathlib import Path
 
 
 def check_CPU_temp():
@@ -19,12 +20,40 @@ def check_CPU_temp():
     return t, msg
 
 
-h = lgpio.gpiochip_open(0)
-channel = 14
-start_temp = 50
-end_temp = 43
-show_info = True
-is_high = False
+def HIGH_FLAG_callback(old, new):
+    if new:
+        lgpio.gpio_write(h, channel, 1)
+        logger.info("Fan started.")
+        Path(flag_file).touch()
+        logger.info(("Wrote flag: %s") % flag_file)
+        logger.info(("Current %s") % msg)
+    else:
+        lgpio.gpio_write(h, channel, 0)
+        logger.info("Fan stopped.")
+        os.remove(flag_file)
+        logger.info(("Deleted flag: %s") % flag_file)
+        logger.info(("Current %s") % msg)
+
+
+class VariableListenedOnChange:
+    def __init__(self, init_value):
+        self._value = init_value
+        self._callbacks = []
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
+        old_value = self._value
+        self._value = new_value
+        for callback in self._callbacks:
+            callback(old_value, new_value)
+
+    def register_callback(self, callback):
+        self._callbacks.append(callback)
+
 
 # Logger setup
 logger = logging.getLogger()
@@ -39,30 +68,33 @@ fileHandler.setFormatter(formatter)
 logger.addHandler(streamHandler)
 logger.addHandler(fileHandler)
 
-if os.path.exists("/usr/local/IS_HIGH_FLAG"):
+h = lgpio.gpiochip_open(0)
+channel = 14
+start_temp = 50
+end_temp = 43
+show_info = True
+flag_file = "/usr/local/IS_HIGH_FLAG"
+is_high = VariableListenedOnChange(False)
+is_high.register_callback(HIGH_FLAG_callback)
+
+if os.path.exists(flag_file):
     lgpio.gpio_write(h, channel, 0)
-    logger.info("Fan started.")
-    os.remove("/usr/local/IS_HIGH_FLAG")
+    logger.info("Got IS_HIGH_FLAG, stopping fan for now just in case.")
+    os.remove(flag_file)
 
 try:
     while True:
-        temp = open('/sys/class/thermal/thermal_zone0/temp')
+        temp = open("/sys/class/thermal/thermal_zone0/temp")
         temp = int(temp.read()) / 1000
         msg = "%.1f ℃" % temp
-        #temp, msg = check_CPU_temp()
+        # temp, msg = check_CPU_temp()
 
-        if temp > start_temp and not is_high:  # 当SoC温度超过启动阈值且风扇处于关闭状态
-            lgpio.gpio_write(h, channel, 1)
-            logger.info("Fan started.")
-            logger.info(("Current %s") % msg)
+        if temp > start_temp and not is_high.value:  # 当SoC温度超过启动阈值且风扇处于关闭状态
+            is_high.value = True
             show_info = True
-            is_high = True
 
-        elif temp < end_temp and is_high:  # 当SoC温度低于关闭阈值且风扇处于打开状态
-            lgpio.gpio_write(h, channel, 0)
-            logger.info("Fan stopped.")
-            logger.info(("Current %s") % msg)
-            is_high = False
+        elif temp < end_temp and is_high.value:  # 当SoC温度低于关闭阈值且风扇处于打开状态
+            is_high.value = False
             show_info = True
 
         elif show_info:
@@ -73,8 +105,6 @@ try:
         sleep(10)  # 每隔10秒监控一次
 
 except:
-    lgpio.gpio_write(h, channel, 0)
-    logger.info("Fan stopped.")
     lgpio.gpiochip_close(h)
     logger.info("Controller Closed.")
 
