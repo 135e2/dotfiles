@@ -2,6 +2,7 @@
 Description=Service for autofan.py
 
 [Service]
+ExecStartPre=/usr/bin/touch /usr/local/IS_HIGH_FLAG
 ExecStart=/usr/local/bin/autofan.py
 
 [Install]
