@@ -68,6 +68,21 @@ alias .....="cd ../../../.."
 alias ~="cd ~" # `cd` is probably faster to type though
 alias -- -="cd -"
 
+# From openSUSE /etc/zshrc
+alias beep='echo -en "\007"'                                                                                    
+alias dir='ls -l'                                                                                               
+alias fgrep='fgrep --color=auto'                                                                                
+alias egrep='egrep --color=auto'                                                                                
+alias grep='grep --color=auto'                                                                                
+alias ip='ip --color=auto'                                                                                      
+alias l='ls -alF'
+alias la='ls -la'
+alias ll='ls -l'                                                                                              
+alias ls-l='ls -l'                                                                                              
+alias md='mkdir -p'
+alias rd='rmdir'
+alias unmount='echo "Error: Try the command: umount" 1>&2; false'                                               
+
 # Use exa instead
 DISABLE_LS_COLORS=true
 alias ls=exa
