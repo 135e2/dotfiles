@@ -1,11 +1,14 @@
+icons_format = "{icon}"
+
+[theme]
 theme = "nord-dark"
+[icons]
 icons = "awesome5"
 
 [[block]]
 block = "memory"
-display_type = "memory"
-format_mem = "{mem_used_percents}"
-format_swap = "{swap_used_percents}"
+format = " $icon $mem_used.eng(3,B,M) $mem_used_percents.eng(1) "
+format_alt = " $icon_swap $swap_used.eng(3,B,M) $swap_used_percents.eng(1) "
 
 [[block]]
 block = "cpu"
@@ -14,25 +17,25 @@ interval = 1
 [[block]]
 block = "load"
 interval = 1
-format = "{1m}"
 
 [[block]]
 block = "net"
-device = "wlan0"
-format = "{speed_down;K*B} {speed_up;K*B}"
+format_alt = " $icon  {$signal_strength $frequency|Wired connection} "
 interval = 1
 
-[[block]]
-block = "custom"
+#[[block]]
+#block = "custom"
 # ⌨ == '\xE2\x8C\xA8'
-cycle = ["xinput enable 'AT Translated Set 2 keyboard'; echo '⌨ ON'", "xinput disable 'AT Translated Set 2 keyboard'; echo '⌨ OFF'"]
+#cycle = ["xinput enable 'AT Translated Set 2 keyboard'; echo '⌨ ON'", "xinput disable 'AT Translated Set 2 keyboard'; echo '⌨ OFF'"]
 
 [[block]]
 block = "battery"
 interval = 10
-format = "{percentage} {time}"
+format = " $icon $percentage $time "
 
 [[block]]
 block = "time"
 interval = 5
-format = "%a %d/%m %R"
+[block.format]
+full = " $icon %a %d/%m %R "
+short = " $icon %R "
