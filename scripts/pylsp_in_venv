@@ -1,0 +1,12 @@
+#!/bin/bash
+VENV_RELATIVE_PATH="venv"
+
+cd $1
+# run the server (python-lsp-server) within the virtualenv
+# (i.e. with virtualenv variables setup)
+# so source the virtualenv
+if [ -d "$VENV_RELATIVE_PATH" ]; then
+    source "$VENV_RELATIVE_PATH/bin/activate"
+fi
+# server mileage or arguments may vary
+exec pylsp --check-parent-process
