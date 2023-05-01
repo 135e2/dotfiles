@@ -222,6 +222,10 @@ bar {
     }
 }
 
+# Hey you! Border hater!!
+default_border pixel 1
+default_floating_border pixel 1
+for_window [class="^.*"] border pixel 1
 
 ### i3-gaps stuff ###
 
@@ -229,14 +233,14 @@ bar {
 # for_window [class="^.*"] border pixel 3
 
 # Smart Gaps
-smart_gaps on
+smart_gaps inverse_outer
 
 # Smart Borders
 smart_borders on
 
 # Set inner/outer gaps
-gaps inner 8
-gaps outer -5
+gaps inner 6
+gaps outer 3
 
 # Hide edge borders only if there is one window with no gaps
 hide_edge_borders smart_no_gaps
