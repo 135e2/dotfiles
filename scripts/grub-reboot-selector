@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Search for grub.cfg
+#GRUB_CFG=$(find /boot -name grub.cfg 2> /dev/null)
+GRUB_CFG="/boot/grub/grub.cfg"
+
+if [[ -z ${GRUB_CFG} ]]; then
+    echo "No grub.cfg found under /boot. Try as root."
+    exit 1
+elif [[ ! -r ${GRUB_CFG} ]]; then
+    echo "${GRUB_CFG} is not readable. Try as root."
+    exit 1
+fi
+
+GRUB_MENUENTRY=$(awk -F\' '/menuentry / {print $2}' ${GRUB_CFG} | fzf)
+
+# Set boot target for next boot
+grub-reboot "${GRUB_MENUENTRY}"
+
+systemctl reboot
