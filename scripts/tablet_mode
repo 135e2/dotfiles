@@ -2,11 +2,13 @@
 # -*- indent-tabs-mode: nil; tab-width: 4 -*-
 
 """
-Enable/disable tablet mode in a Crouton chroot based on lid angle.
+Enable/disable tablet mode on chrultrabooks based on lid angle.
+
+NOTICE: This script only runs on newer kernels!
 
 Slightly modified from https://gist.github.com/ninlith/d0b56676c09b9d3142266c20c833d3da
 Author: ninlith & 135e2
-Version: v1.2
+Version: v1.3
 """
 
 import argparse
@@ -21,7 +23,7 @@ from collections import defaultdict
 import numpy as np
 
 logger = logging.getLogger(__name__)
-ver = "v1.2"
+ver = "v1.3"
 
 
 def parse_command_line_args():
@@ -82,7 +84,7 @@ class ConvertibleChromebook(object):
         Edit the path below for your chromebook.
         """
         command = (
-            "grep --null '' /sys/class/chromeos/cros_ec/device/cros-ec-sensorhub.2.auto"
+            "grep --null '' /sys/class/chromeos/cros_ec/device/cros-ec-sensorhub.*.auto"
             "/cros-ec-accel.*/iio:device*/* 2>/dev/null"
         )
         ret = os.popen(command).readlines()
@@ -94,23 +96,23 @@ class ConvertibleChromebook(object):
             dirname, filename = path.rsplit("/", 1)
             orig_data[dirname][filename] = paths_to_values[path]
         for dirname in orig_data:
-            location = orig_data[dirname]["location"]
+            location = orig_data[dirname]["label"]
             data[location] = orig_data[dirname]  # Move data to the new dict.
 
         self.lid_accel = [
-            x * float(data["lid"]["scale"])
+            x * float(data["accel-display"]["scale"])
             for x in [
-                float(data["lid"]["in_accel_x_raw"]),
-                float(data["lid"]["in_accel_y_raw"]),
-                float(data["lid"]["in_accel_z_raw"]),
+                float(data["accel-display"]["in_accel_x_raw"]),
+                float(data["accel-display"]["in_accel_y_raw"]),
+                float(data["accel-display"]["in_accel_z_raw"]),
             ]
         ]
         self.base_accel = [
-            x * float(data["base"]["scale"])
+            x * float(data["accel-base"]["scale"])
             for x in [
-                float(data["base"]["in_accel_x_raw"]),
-                float(data["base"]["in_accel_y_raw"]),
-                float(data["base"]["in_accel_z_raw"]),
+                float(data["accel-base"]["in_accel_x_raw"]),
+                float(data["accel-base"]["in_accel_y_raw"]),
+                float(data["accel-base"]["in_accel_z_raw"]),
             ]
         ]
 
@@ -205,7 +207,8 @@ class ConvertibleChromebook(object):
                 "'Coordinate Transformation Matrix' " + matrices[orientation]
             )
             self.screen_orientation = orientation
-            callback(orientation)
+            if callback:
+                callback(orientation)
 
 
 def main():
@@ -225,8 +228,8 @@ def main():
     setup_logging(args.loglevel)
 
     cc = ConvertibleChromebook(
-        base_input_devices=["AT Translated Set 2 keyboard"],
-        touchscreen_device="Elan Touchscreen",
+        base_input_devices=["AT Translated Set 2 keyboard", "keyd virtual keyboard"],
+        touchscreen_device="SYTS7813:00 06CB:7813",
     )
     tablet_mode_enabled = False
 
@@ -265,6 +268,7 @@ def main():
                 tablet_mode_enabled = True
             # Comment it out since we don't use xfce panel on i3.
             # cc.orientate_screen(callback=switch_xfce_panel_mode)
+            cc.orientate_screen()
         elif abs(cc.lid_accel[0]) > 9.5:
             # Lid angle calculation is unreliable when hinge aligns with
             # gravity.
