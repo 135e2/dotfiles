@@ -1,9 +1,16 @@
-icons_format = "{icon}"
+icons_format = "<span font_family='FiraCode Nerd Font'>{icon}</span>"
 
 [theme]
 theme = "nord-dark"
 [icons]
-icons = "awesome5"
+icons = "awesome6"
+
+[[block]]
+block = "time"
+interval = 5
+[block.format]
+full = " $icon $timestamp.datetime(f:'%a %d/%m %R') "
+short = " $icon %R "
 
 [[block]]
 block = "memory"
@@ -34,9 +41,3 @@ block = "battery"
 interval = 10
 format = " $icon $percentage $time "
 
-[[block]]
-block = "time"
-interval = 5
-[block.format]
-full = " $icon $timestamp.datetime(f:'%a %d/%m %R') "
-short = " $icon %R "
