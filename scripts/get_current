@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Extract current and unit
+read -r current <<<"$(sensors -j | jq '."BAT0-acpi-0".curr1.curr1_input')"
+
+# Convert current to number (float)
+current_value="${current//,/.}"
+unit="A"
+
+# Initialize state
+if [[ "$(cat /sys/class/power_supply/BAT0/status)" == "Charging" ]]; then
+    state="good"
+elif (($(echo "$current_value > 1.5" | bc -l))); then
+    state="critical"
+elif (($(echo "$current_value > 1.0" | bc -l))); then
+    state="warning"
+elif (($(echo "$current_value > 0.8" | bc -l))); then
+    state="info"
+elif (($(echo "$current_value > 0.1" | bc -l))); then
+    state="idle"
+fi
+
+if (($(echo "$current_value < 1" | bc -l))); then
+    current_value=$(echo "$current_value * 1000" | bc -l)
+    current_formatted=$(printf "%.0f" "$current_value")
+    unit="mA"
+else
+    current_formatted=$(printf "%.2f" "$current_value")
+fi
+
+# Format output with original units for display
+full_text="${current_formatted} ${unit}"
+
+# Output JSON for i3status-rs custom block
+echo "{\"text\":\"$full_text\", \"state\":\"$state\"}"

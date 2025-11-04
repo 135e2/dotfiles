@@ -59,6 +59,9 @@ zinit light zsh-users/zsh-autosuggestions
 # zsh-proxy
 zinit light SukkaW/zsh-proxy
 
+# shell history
+[[ -f "$(which atuin)" ]] || eval "$(atuin init zsh --disable-up-arrow)"
+
 # Easier navigation: .., ..., ...., ....., ~ and -
 # Copied from https://github.com/mathiasbynens/dotfiles/blob/main/.aliases
 alias ..="cd .."
@@ -88,7 +91,7 @@ DISABLE_LS_COLORS=true
 alias ls=exa
 
 # Use batcat as cat
-alias cat=batcat
+alias cat=bat
 
 # Goproxy
 export GOPROXY=https://goproxy.io,direct
@@ -108,3 +111,16 @@ export PATH="$HOME/.poetry/bin:$PATH"
 
 # Scaleway CLI autocomplete initialization.
 eval "$(scw autocomplete script shell=zsh)"
+
+# pnpm
+export PNPM_HOME="/home/shang/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+# vscreen
+alias startvscreen='export DISPLAY=:1; Xvfb :1 -screen 0 2256x1504x24 &; sleep 1; icewm &; x11vnc -display :1'
+alias stopvscreen='pkill icewm; pkill x11vnc; pkill Xvfb'
+
