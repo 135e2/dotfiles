@@ -8,6 +8,8 @@ current_value="${current//,/.}"
 unit="A"
 
 # Initialize state
+state="idle"
+
 if [[ "$(cat /sys/class/power_supply/BAT0/status)" == "Charging" ]]; then
     state="good"
 elif (($(echo "$current_value > 1.5" | bc -l))); then
